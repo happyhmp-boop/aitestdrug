@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>안심복약 도우미</title>
+<meta name="description" content="약봉투를 사진으로 찍으면 복용 시간표를 알려 주는 연습용 시연 화면 (가상 데이터)">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+/* 레이아웃: 어르신 폰 화면(왼쪽/위)과 '속 들여다보기' 패널(오른쪽/아래)을 나란히 둔다. 읽기 단계만 진짜 AI. */
+:root{
+  --bg:#f3f6f8; --card:#ffffff; --fg:#14232e; --muted:#51626e; --line:#cfd9e0;
+  --accent:#0b5f7a; --accent-fg:#ffffff; --accent-soft:#d9eef5;
+  --ok:#17663a; --ok-bg:#dff3e6; --warn:#8a4b00; --warn-bg:#fdeccf; --no:#4a5560; --no-bg:#e6eaee;
+  --paper:#fffef9; --paper-line:#d9d4c0; --code-bg:#0f1c25; --code-fg:#cfe6f0;
+  --font:"Noto Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1a22; --card:#16262f; --fg:#e8f1f5; --muted:#9db3bf; --line:#2c424f;
+  --accent:#5cc0de; --accent-fg:#06222d; --accent-soft:#1b3a47;
+  --ok:#7fe0a5; --ok-bg:#16382a; --warn:#ffc77a; --warn-bg:#40300f; --no:#b9c6cf; --no-bg:#25343e;
+  --paper:#202a2f; --paper-line:#3a4a52; --code-bg:#08121a; --code-fg:#bfe0ee; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1a22; --card:#16262f; --fg:#e8f1f5; --muted:#9db3bf; --line:#2c424f;
+  --accent:#5cc0de; --accent-fg:#06222d; --accent-soft:#1b3a47;
+  --ok:#7fe0a5; --ok-bg:#16382a; --warn:#ffc77a; --warn-bg:#40300f; --no:#b9c6cf; --no-bg:#25343e;
+  --paper:#202a2f; --paper-line:#3a4a52; --code-bg:#08121a; --code-fg:#bfe0ee; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:18px;line-height:1.6;
+  padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-x:auto}
+.wrap{max-width:1040px;margin:0 auto}
+header.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;margin-bottom:16px}
+header.top h1{font-size:22px;font-weight:900;margin:0;text-wrap:balance}
+.badge{font-size:14px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 12px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:820px){.layout{grid-template-columns:minmax(0,1fr)}}
+.phone{background:var(--card);border:2px solid var(--line);border-radius:28px;padding:22px 20px 26px;min-height:520px}
+.phone h2{font-size:26px;line-height:1.35;margin:0 0 12px;font-weight:900;text-wrap:balance}
+.phone p{margin:0 0 12px}
+.big{display:block;width:100%;font-family:var(--font);font-size:24px;font-weight:700;border:0;border-radius:18px;padding:20px 16px;margin:0 0 12px;
+  background:var(--accent);color:var(--accent-fg);cursor:pointer;text-align:center}
+.big.alt{background:var(--accent-soft);color:var(--accent)}
+.big.line{background:transparent;color:var(--fg);border:2px solid var(--line);font-size:20px;padding:14px}
+.big:focus-visible,.chip:focus-visible,.tgl:focus-visible,.speak:focus-visible,.lnk:focus-visible{outline:4px solid var(--warn);outline-offset:3px}
+.samples{display:grid;gap:10px;margin-top:6px}
+.chip{font-family:var(--font);font-size:18px;text-align:left;border:2px solid var(--line);background:var(--card);color:var(--fg);border-radius:14px;padding:10px 14px;cursor:pointer}
+.chip small{display:block;color:var(--muted);font-size:14px}
+.lnk{font-family:var(--font);font-size:15px;background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:6px 0;margin-top:6px}
+.label{font-size:14px;color:var(--muted);letter-spacing:.04em;margin:18px 0 6px}
+.paper{background:var(--paper);border:1px solid var(--paper-line);border-radius:6px;padding:14px 16px;margin:0 0 14px}
+.paper h3{margin:0 0 8px;font-size:19px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px dashed var(--paper-line)}
+.row:first-of-type{border-top:0}
+.row b{font-variant-numeric:tabular-nums;text-align:right}
+.ev{font-size:14px;color:var(--muted);margin:-6px 0 12px}
+.photo{max-width:100%;max-height:200px;border-radius:8px;display:block;margin:0 auto 12px}
+.yn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.yn .big:last-child{grid-column:1 / -1}
+.verdict{border-radius:18px;padding:16px;margin:0 0 14px}
+.verdict h3{margin:0 0 6px;font-size:26px;font-weight:900}
+.v-ok{background:var(--ok-bg);color:var(--ok)} .v-warn{background:var(--warn-bg);color:var(--warn)} .v-no{background:var(--no-bg);color:var(--no)}
+.src{font-size:15px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px;margin-top:6px}
+.speak{font-family:var(--font);font-size:20px;font-weight:700;border-radius:14px;border:2px solid var(--accent);background:transparent;color:var(--accent);padding:12px 16px;cursor:pointer;margin:0 0 12px;width:100%}
+.dots{display:flex;gap:6px;margin-bottom:16px}
+.dots i{height:6px;flex:1;border-radius:3px;background:var(--line)} .dots i.on{background:var(--accent)}
+.spin{width:36px;height:36px;border-radius:50%;border:5px solid var(--line);border-top-color:var(--accent);margin:8px 0 14px}
+@media(prefers-reduced-motion:no-preference){.spin{animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}.fade{animation:f .25s ease-out}@keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}}
+.note{font-size:14px;color:var(--muted)}
+/* 속 들여다보기 */
+.peek{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.peek h2{font-size:18px;margin:0 0 4px}
+.peek .sub{font-size:14px;color:var(--muted);margin:0 0 12px}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.steps li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;font-size:15px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);opacity:.55}
+.steps li.on{opacity:1;border-color:var(--accent);background:var(--accent-soft)}
+.steps li.done{opacity:1}
+.steps .n{width:26px;height:26px;border-radius:50%;background:var(--line);color:var(--fg);font-size:13px;font-weight:700;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.steps li.on .n,.steps li.done .n{background:var(--accent);color:var(--accent-fg)}
+.steps b{display:block;font-size:15px}
+.steps span{color:var(--muted);font-size:13.5px}
+.tag{display:inline-block;font-size:12px;border-radius:999px;padding:0 8px;margin-left:6px;border:1px solid var(--accent);color:var(--accent)}
+.tgl{font-family:var(--font);font-size:14px;margin-top:12px;border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:8px;padding:6px 12px;cursor:pointer}
+pre.code{background:var(--code-bg);color:var(--code-fg);border-radius:10px;padding:12px 14px;margin:10px 0 0;font-size:13px;line-height:1.55;overflow-x:auto;white-space:pre}
+.hint{font-size:14px;color:var(--muted);margin-top:14px}
+html{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>찰칵! 안심복약 도우미 · 시연</h1>
+    <span class="badge" id="badge">약봉투와 약 정보는 가상 예시입니다</span>
+  </header>
+  <div class="layout">
+    <section class="phone" id="phone" aria-live="polite"></section>
+    <aside class="peek">
+      <h2>속 들여다보기</h2>
+      <p class="sub">왼쪽에서 어르신이 누르는 동안, 안에서 어떤 단계가 돌아가는지 보여 줍니다.</p>
+      <ol class="steps" id="steps"></ol>
+      <button class="tgl" id="tgl" type="button" aria-expanded="false">AI가 넘겨준 JSON 보기</button>
+      <pre class="code" id="json" hidden></pre>
+      <p class="hint" id="hint"></p>
+    </aside>
+  </div>
+</div>
+
+<style>
+.slot{background:var(--paper);border:1px solid var(--paper-line);border-radius:10px;padding:10px 14px;margin:0 0 10px}
+.slot h3{margin:0 0 4px;font-size:21px}
+.slot li{font-size:18px;margin:2px 0}
+.slot ul{margin:0;padding-left:20px}
+.info{border-top:1px dashed var(--line);padding:8px 0;font-size:16px}
+.info b{font-size:18px}
+.mini{font-size:13px;color:var(--muted)}
+</style>
+<script>
+/* ===== 약 정보 자료 (가상 예시). 실제로는 식약처 등 공식 자료를 출처·확인일과 함께 정리해 사용합니다. ===== */
+var INFO = {
+  "가온정":{use:"혈압을 관리하는 약이에요 (예시 자료)", care:"마음대로 끊지 마세요. 어지러우면 약사에게 알려 주세요."},
+  "나래캡슐":{use:"통증이나 염증을 줄이는 약이에요 (예시 자료)", care:"속이 불편하면 약사에게 물어보세요."},
+  "해든정":{use:"혈당을 관리하는 약이에요 (예시 자료)", care:"식사를 거르면 약사와 먼저 상의하세요."}
+};
+/* 사진 없이 해 보는 견본 (AI 미사용) */
+var DEMO = {
+  m1:{doc_type:"약봉투",confidence:0.96,retake:false,meds:[
+    {name:"가온정",strength:"10mg",dose:"1정",times_per_day:1,timing:"아침",when_note:"식후 30분",days:30,source_text:"가온정 10mg 1정 1일 1회 아침 식후 30분 30일"},
+    {name:"나래캡슐",strength:"250mg",dose:"1캡슐",times_per_day:3,timing:"매 식후",when_note:"식후 30분",days:5,source_text:"나래캡슐 250mg 1캡슐 1일 3회 매 식후 30분 5일"}]},
+  m3:{doc_type:"약봉투",confidence:0.94,retake:false,meds:[
+    {name:"가온정",strength:"10mg",dose:"1정",times_per_day:1,timing:"아침",when_note:"식후 30분",days:30,source_text:"가온정 10mg 1정 1일 1회 아침 식후 30분 30일"},
+    {name:"가온정",strength:"10mg",dose:"1정",times_per_day:1,timing:"저녁",when_note:"식후 30분",days:30,source_text:"가온정 10mg 1정 1일 1회 저녁 식후 30분 30일"},
+    {name:"해든정",strength:"5mg",dose:"1정",times_per_day:2,timing:"아침·저녁",when_note:"식후 30분",days:30,source_text:"해든정 5mg 1정 1일 2회 아침·저녁 식후 30분 30일"}]},
+  blur:{doc_type:"약봉투",confidence:0.32,retake:true,reason:"글씨가 흐려 약 이름과 복용법을 확실히 읽을 수 없음",meds:[]}
+};
+var DEMO_NAMES = {m1:"약봉투 1 (정상)", m3:"약봉투 3 (같은 약이 두 번)", blur:"흐릿한 사진"};
+
+var STEPS = [
+  ["찰칵","휴대폰 카메라로 약봉투를 찍습니다."],
+  ["읽기","AI가 약 이름·1회량·횟수·시점·일수를 읽어 JSON으로 만듭니다.","AI"],
+  ["확인","읽은 값을 어르신이 확인합니다. 틀리면 다시 찍습니다."],
+  ["정리","시간표와 같은 약 중복 여부는 AI가 아니라 코드가 정리합니다."],
+  ["설명","정리해 둔 자료 안에서만 설명하고, 음성으로 읽어 줍니다. (실제는 RAG)"]
+];
+var PROMPT = [
+ "첨부된 사진은 한국 약국의 약봉투 또는 복약안내문입니다(연습용 가상 견본).",
+ "사진에 실제로 보이는 글자만 읽고 추측하지 마세요. 아래 JSON 하나로만 답하고 다른 설명은 쓰지 마세요.",
+ '{"doc_type":"약봉투" | "기타",',
+ ' "meds":[{"name":"약 이름(용량 제외)","strength":"용량(예 10mg) 없으면 null","dose":"1회 복용량(예 1정)",',
+ '   "times_per_day":하루 복용 횟수 숫자,"timing":"복용 시점(예 아침·저녁, 매 식후)","when_note":"식전/식후 등(예 식후 30분) 없으면 null",',
+ '   "days":일수 숫자,"source_text":"사진에 적힌 해당 줄 원문"}],',
+ ' "confidence":0에서 1 사이 숫자(읽은 값에 대한 스스로의 확신),',
+ ' "retake":글씨가 흐리거나 잘리거나 어두워 믿을 수 없으면 true 아니면 false,',
+ ' "reason":"한 줄 설명"}',
+ "약봉투가 아니면 doc_type은 기타, retake는 true, meds는 빈 배열로 하세요.",
+ "환자 이름, 약국 이름 등 개인정보는 출력하지 마세요. 약의 효능이나 복용 조언은 쓰지 말고 사진에 적힌 것만 옮기세요."
+].join("\n");
+
+var S = {screen:"start", mode:"demo", json:null, photo:null, stepOn:0, err:null, speech:""};
+/* 서버 연결 시 여기에 주소를 넣는다. 예: "/api/read" (사진을 받아 위 JSON 형식으로 돌려주는 서버 함수).
+   비어 있으면 AI 읽기는 꺼지고 견본으로만 동작한다. API 키는 이 파일이 아니라 서버에만 둔다. */
+var READ_ENDPOINT = "";
+var sampleFn = null, canImg = false, ctl = null;
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+function renderSteps(){
+  var h="";
+  STEPS.forEach(function(s,i){
+    var cls = S.stepOn===i+1 ? "on" : (S.stepOn>i+1 ? "done" : "");
+    var tag = (s[2]&&S.mode==="ai") ? '<span class="tag">진짜 AI</span>' : "";
+    h += '<li class="'+cls+'"><div class="n">'+(i+1)+'</div><div><b>'+s[0]+tag+'</b><span>'+s[1]+'</span></div></li>';
+  });
+  $("steps").innerHTML = h;
+  $("json").textContent = S.json ? JSON.stringify(S.json,null,2) : "아직 읽은 값이 없습니다. 약봉투를 찍으면 여기에 나타납니다.";
+  $("hint").textContent = S.mode==="ai"
+    ? "'읽기'만 실제 AI가 합니다. 시간표·중복 확인은 코드가 하고, 약 설명은 정리해 둔 예시 자료 안에서만 합니다. 이 화면의 약 정보는 예시이며 실제 복용 기준이 아닙니다."
+    : "견본 모드입니다. AI 없이 미리 적어 둔 값을 씁니다.";
+  $("badge").textContent = S.mode==="ai" ? "읽기는 진짜 AI · 약봉투와 약 정보는 가상" : "견본 모드 · 모든 값은 가짜입니다";
+}
+function dots(n){var h='<div class="dots" aria-hidden="true">';for(var i=1;i<=4;i++)h+='<i class="'+(i<=n?'on':'')+'"></i>';return h+'</div>'}
+function go(screen,step){S.screen=screen;S.stepOn=step;render()}
+
+/* 안전장치: 코드가 정한다 */
+function decide(j){
+  if(!j || j.retake===true || j.doc_type!=="약봉투") return {ok:false, why:(j&&j.reason)||"약봉투를 확인할 수 없어요"};
+  if(typeof j.confidence==="number" && j.confidence<0.7) return {ok:false, why:"읽은 값에 확신이 낮아요"};
+  if(!j.meds || !j.meds.length) return {ok:false, why:"약 이름을 읽지 못했어요"};
+  for(var i=0;i<j.meds.length;i++){ var m=j.meds[i]; if(!m.name || !m.times_per_day) return {ok:false, why:"약 이름이나 복용 횟수를 읽지 못했어요"}; }
+  return {ok:true};
+}
+/* 시간표: 규칙(코드)으로 만든다 */
+function slotsFor(m){
+  var t=(m.timing||""), s=[], n=Number(m.times_per_day)||0;
+  if(/아침/.test(t)) s.push("아침");
+  if(/점심/.test(t)) s.push("점심");
+  if(/저녁/.test(t)) s.push("저녁");
+  if(/자기\s?전|취침/.test(t)) s.push("자기 전");
+  if(!s.length){
+    if(n===1) s=["아침"]; else if(n===2) s=["아침","저녁"]; else if(n===3) s=["아침","점심","저녁"]; else if(n>=4) s=["아침","점심","저녁","자기 전"];
+  }
+  return s;
+}
+function plan(j){
+  var order=["아침","점심","저녁","자기 전"], table={}, flags=[], seen={};
+  order.forEach(function(k){table[k]=[]});
+  j.meds.forEach(function(m){
+    var s=slotsFor(m);
+    if(s.length!==Number(m.times_per_day)) flags.push(m.name+": 하루 "+m.times_per_day+"회인데 시점이 "+(m.timing||"적혀 있지 않아요")+".");
+    s.forEach(function(k){ table[k].push({name:m.name,dose:m.dose||"1회량 확인 필요",note:m.when_note||""}) });
+    seen[m.name]=(seen[m.name]||0)+1;
+  });
+  Object.keys(seen).forEach(function(k){ if(seen[k]>1) flags.push("'"+k+"'이(가) 목록에 "+seen[k]+"번 있어요. 두 곳에서 받은 같은 약일 수 있으니 약사에게 확인하세요."); });
+  return {table:table, flags:flags, order:order};
+}
+
+function render(){
+  var j=S.json, h="";
+  if(S.screen==="start"){
+    h = '<div class="fade">'+dots(0)+'<h2>약봉투를 사진으로 찍어 보세요</h2><p>언제 어떤 약을 드시는지 정리해 드려요.</p>'+
+      '<input id="cam" type="file" accept="image/*" capture="environment" hidden>'+
+      '<button class="big" id="shoot" type="button">📷 약봉투 찍기</button>'+
+      (S.err?'<div class="verdict v-warn"><h3>잠깐만요</h3>'+esc(S.err)+'</div>':'')+
+      '<p class="note">처음 한 번은 AI 사용을 허용하는 창이 뜰 수 있어요.</p>'+
+      '<button class="lnk" id="demoToggle" type="button">사진 없이 견본으로 해 보기</button>'+
+      '<div class="samples" id="demoList" hidden>'+
+      ["m1","m3","blur"].map(function(k){return '<button class="chip" type="button" data-demo="'+k+'">'+DEMO_NAMES[k]+'</button>'}).join("")+'</div></div>';
+  }
+  else if(S.screen==="reading"){
+    h = '<div class="fade">'+dots(1)+(S.photo?'<img class="photo" alt="찍은 사진" src="'+S.photo+'">':'')+
+      '<h2>읽는 중이에요…</h2><div class="spin" aria-hidden="true"></div><p>AI가 사진을 보고 있어요. 10~30초쯤 걸릴 수 있어요.</p>'+
+      '<button class="big line" id="cancel" type="button">그만두기</button></div>';
+  }
+  else if(S.screen==="retake"){
+    h = '<div class="fade">'+dots(1)+'<h2>다시 찍어 주세요</h2>'+
+      '<div class="verdict v-warn"><h3>글씨가 잘 안 보여요</h3>'+esc((j&&j.reason)||"밝은 곳에서 약봉투를 평평하게 놓고 다시 찍어 주세요.")+'</div>'+
+      '<p class="note">약은 잘못 읽으면 위험할 수 있어서, 확실하지 않으면 여기서 멈춥니다.</p>'+
+      '<button class="big" id="again" type="button">다시 찍기</button></div>';
+  }
+  else if(S.screen==="confirm"){
+    h = '<div class="fade">'+dots(2)+'<h2>이렇게 읽었어요</h2>'+(S.photo?'<img class="photo" alt="찍은 사진" src="'+S.photo+'">':'')+
+      '<div class="paper"><h3>약 '+j.meds.length+'가지</h3>'+
+      j.meds.map(function(m){return '<div class="row"><span>'+esc(m.name)+(m.strength?' '+esc(m.strength):'')+'</span><b>'+esc(m.dose||"")+' · 하루 '+esc(m.times_per_day)+'회 · '+esc(m.days||"?")+'일</b></div>'}).join("")+'</div>'+
+      '<p class="ev">사진에서 읽은 글자: '+esc(j.meds.map(function(m){return m.source_text}).filter(Boolean).join(" / "))+'</p>'+
+      '<p>맞게 읽었나요?</p>'+
+      '<button class="big" id="okread" type="button">네, 맞아요</button>'+
+      '<button class="big line" id="again" type="button">아니에요, 다시 찍을게요</button></div>';
+  }
+  else if(S.screen==="result"){
+    var p=plan(j), say=[], slots="";
+    p.order.forEach(function(k){
+      var items=p.table[k]; if(!items.length) return;
+      slots += '<div class="slot"><h3>'+k+'</h3><ul>'+items.map(function(x){return '<li>'+esc(x.name)+' '+esc(x.dose)+(x.note?' ('+esc(x.note)+')':'')+'</li>'}).join("")+'</ul></div>';
+      say.push(k+"에는 "+items.map(function(x){return x.name+" "+x.dose}).join(", ")+"을 드세요.");
+    });
+    var names={}, infos="";
+    j.meds.forEach(function(m){ if(names[m.name]) return; names[m.name]=1;
+      var f=INFO[m.name];
+      infos += f ? '<div class="info"><b>'+esc(m.name)+'</b><br>'+esc(f.use)+'<br>'+esc(f.care)+'</div>'
+                 : '<div class="info"><b>'+esc(m.name)+'</b><br>이 약은 정리해 둔 설명 자료가 없어서 안내하지 않아요. 약사에게 물어보세요.</div>';
+    });
+    var warn = p.flags.length ? '<div class="verdict v-warn"><h3>약사·의사 확인이 필요해요</h3>'+p.flags.map(esc).join("<br>")+'</div>' : "";
+    S.speech = say.join(" ")+(p.flags.length?" 확인이 필요한 내용이 있으니 약사나 의사에게 물어보세요.":"")+" 약을 바꾸거나 멈추기 전에는 꼭 약사나 의사와 상의하세요.";
+    h = '<div class="fade">'+dots(4)+'<h2>복용 시간표</h2>'+warn+slots+
+      '<div class="label">약 설명 (예시 자료)</div>'+infos+
+      '<p class="mini">약을 바꾸거나 멈추기 전에는 꼭 약사·의사와 상의하세요. 이 화면은 진단이나 복용 변경을 안내하지 않아요.</p>'+
+      '<button class="speak" id="speak" type="button">🔊 소리로 듣기</button>'+
+      '<button class="big line" id="restart" type="button">처음으로</button></div>';
+  }
+  $("phone").innerHTML = h;
+  renderSteps();
+  bind();
+}
+
+async function shrink(file){
+  try{
+    var bmp = await createImageBitmap(file,{imageOrientation:"from-image"});
+    var sc = Math.min(1, 1280/Math.max(bmp.width,bmp.height));
+    var w=Math.max(1,Math.round(bmp.width*sc)), h=Math.max(1,Math.round(bmp.height*sc));
+    var cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+    cv.getContext("2d").drawImage(bmp,0,0,w,h);
+    if(bmp.close) bmp.close();
+    var blob = await new Promise(function(r){cv.toBlob(r,"image/jpeg",0.85)});
+    cv.width=1; cv.height=1;
+    return blob || file;
+  }catch(e){ return file; }
+}
+async function readViaEndpoint(blob, signal){
+  var fd = new FormData(); fd.append("image", blob, "photo.jpg");
+  var r = await fetch(READ_ENDPOINT, {method:"POST", body:fd, signal:signal});
+  if(!r.ok) throw {code:"upstream_error"};
+  return await r.json();
+}
+async function readPhoto(file){
+  if(!sampleFn && !READ_ENDPOINT){ S.err="아직 AI 읽기가 연결되지 않았어요. 아래 '사진 없이 견본으로 해 보기'를 써 주세요."; go("start",0); return; }
+  if(sampleFn && !canImg){ S.err="이 화면에서는 사진을 AI에 보낼 수 없어요. '견본으로 해 보기'를 써 주세요."; go("start",0); return; }
+  S.mode="ai"; S.err=null; S.json=null;
+  if(S.photo){ try{ URL.revokeObjectURL(S.photo) }catch(e){} }
+  S.photo=null; go("reading",2);
+  ctl = new AbortController();
+  try{
+    var small = await shrink(file);
+    try{ S.photo = URL.createObjectURL(small) }catch(e){ S.photo=null }
+    render();
+    var j = READ_ENDPOINT ? await readViaEndpoint(small, ctl.signal) : await sampleFn.json(PROMPT,{images:small,modelTier:"default",cache:false,signal:ctl.signal});
+    S.json=j;
+    var d=decide(j);
+    if(!d.ok){ if(j && !j.reason) j.reason=d.why; go("retake",2); return; }
+    go("confirm",3);
+  }catch(e){
+    if(e && e.code==="cancelled"){ go("start",0); return; }
+    var m={not_granted:"AI 사용이 허용되지 않았어요. 허용 후 다시 시도해 주세요.",rate_limited:"잠시 후에 다시 시도해 주세요.",
+      image_rejected:"이 사진은 읽을 수 없어요. 다른 사진으로 해 주세요.",invalid_json:"AI의 답을 이해하지 못했어요. 다시 찍어 주세요.",
+      session_expired:"다시 로그인해 주세요."}[e && e.code] || "읽는 중 문제가 생겼어요. 다시 시도해 주세요.";
+    S.err=m; go("start",0);
+  }
+}
+function useDemo(k){
+  S.mode="demo"; S.photo=null; S.json=JSON.parse(JSON.stringify(DEMO[k])); S.err=null; go("reading",2);
+  setTimeout(function(){ var d=decide(S.json); if(!d.ok){go("retake",2);return;} go("confirm",3); },700);
+}
+function bind(){
+  var cam=$("cam"); if(cam){ $("shoot").onclick=function(){cam.click()}; cam.onchange=function(){var f=cam.files&&cam.files[0]; if(f) readPhoto(f)}; }
+  var dt=$("demoToggle"); if(dt) dt.onclick=function(){var l=$("demoList"); l.hidden=!l.hidden};
+  document.querySelectorAll("[data-demo]").forEach(function(b){b.onclick=function(){useDemo(b.getAttribute("data-demo"))}});
+  ["again","restart"].forEach(function(id){var e=$(id); if(e) e.onclick=function(){S.json=null;S.photo=null;S.err=null;go("start",0)}});
+  var ok=$("okread"); if(ok) ok.onclick=function(){go("result",5)};
+  var c=$("cancel"); if(c) c.onclick=function(){ if(ctl) ctl.abort() };
+  var sp=$("speak"); if(sp) sp.onclick=function(){
+    try{ speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(S.speech); u.lang="ko-KR"; u.rate=0.9; speechSynthesis.speak(u); }
+    catch(e){ sp.textContent="이 기기에서는 소리를 낼 수 없어요"; }
+  };
+}
+$("tgl").onclick=function(){
+  var p=$("json"); p.hidden=!p.hidden; this.setAttribute("aria-expanded",String(!p.hidden));
+  this.textContent = p.hidden ? "AI가 넘겨준 JSON 보기" : "JSON 접기";
+};
+render();
+(async function(){
+  try{
+    if(window.claude && window.claude.use){
+      sampleFn = await window.claude.use("sample");
+      if(sampleFn){ var l=await sampleFn.limits().catch(function(){return null}); canImg=!!(l&&l.images); }
+    }
+  }catch(e){ sampleFn=null; }
+  if(READ_ENDPOINT || (sampleFn && canImg)) { S.mode="ai"; }
+  render();
+})();
+</script>
+</body>
+</html>

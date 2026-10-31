@@ -114,31 +114,33 @@ html{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-wi
 .mini{font-size:13px;color:var(--muted)}
 </style>
 <script>
-/* ===== 약 정보 자료 (가상 예시). 실제로는 식약처 등 공식 자료를 출처·확인일과 함께 정리해 사용합니다. ===== */
-var INFO = {
-  "가온정":{use:"혈압을 관리하는 약이에요 (예시 자료)", care:"마음대로 끊지 마세요. 어지러우면 약사에게 알려 주세요."},
-  "나래캡슐":{use:"통증이나 염증을 줄이는 약이에요 (예시 자료)", care:"속이 불편하면 약사에게 물어보세요."},
-  "해든정":{use:"혈당을 관리하는 약이에요 (예시 자료)", care:"식사를 거르면 약사와 먼저 상의하세요."}
-};
-/* 사진 없이 해 보는 견본 (AI 미사용) */
+/* ===== 약 설명 자료 (용도·주의사항 등 부가 정보) =====
+   확정 방향: 약봉투에서 읽은 값을 그대로 보여 주고 읽어 주는 것이 핵심이다.
+   부가 정보는 식약처 Open API로 보강할 수 있고, 연결 전에는 비어 있다(가짜 설명을 넣지 않는다). */
+var INFO = {};
+/* 사진 없이 해 보는 견본 (AI 미사용). 약 이름은 실제 제품명, 환자·약국·처방은 가상 */
 var DEMO = {
   m1:{doc_type:"약봉투",confidence:0.96,retake:false,meds:[
-    {name:"가온정",strength:"10mg",dose:"1정",times_per_day:1,timing:"아침",when_note:"식후 30분",days:30,source_text:"가온정 10mg 1정 1일 1회 아침 식후 30분 30일"},
-    {name:"나래캡슐",strength:"250mg",dose:"1캡슐",times_per_day:3,timing:"매 식후",when_note:"식후 30분",days:5,source_text:"나래캡슐 250mg 1캡슐 1일 3회 매 식후 30분 5일"}]},
+    {name:"노바스크정",strength:"5mg",dose:"1정",times_per_day:1,timing:"아침",when_note:"식후 30분",days:30,source_text:"노바스크정 5mg 1정 1일 1회 아침 식후 30분 30일"},
+    {name:"다이아벡스정",strength:"500mg",dose:"1정",times_per_day:2,timing:"아침·저녁",when_note:"식후 30분",days:30,source_text:"다이아벡스정 500mg 1정 1일 2회 아침·저녁 식후 30분 30일"},
+    {name:"리피토정",strength:"10mg",dose:"1정",times_per_day:1,timing:"저녁",when_note:"식후 30분",days:30,source_text:"리피토정 10mg 1정 1일 1회 저녁 식후 30분 30일"}]},
+  m2:{doc_type:"약봉투",confidence:0.91,retake:false,meds:[
+    {name:"에어탈정",strength:"100mg",dose:"1정",times_per_day:2,timing:"아침·저녁",when_note:"식후 30분",days:5,source_text:"에어탈정 100mg 1정 1일 2회 아침·저녁 식후 30분 5일"},
+    {name:"무코스타정",strength:"100mg",dose:"1정",times_per_day:3,timing:"매 식후",when_note:"식후 30분",days:5,source_text:"무코스타정 100mg 1정 1일 3회 매 식후 30분 5일"}]},
   m3:{doc_type:"약봉투",confidence:0.94,retake:false,meds:[
-    {name:"가온정",strength:"10mg",dose:"1정",times_per_day:1,timing:"아침",when_note:"식후 30분",days:30,source_text:"가온정 10mg 1정 1일 1회 아침 식후 30분 30일"},
-    {name:"가온정",strength:"10mg",dose:"1정",times_per_day:1,timing:"저녁",when_note:"식후 30분",days:30,source_text:"가온정 10mg 1정 1일 1회 저녁 식후 30분 30일"},
-    {name:"해든정",strength:"5mg",dose:"1정",times_per_day:2,timing:"아침·저녁",when_note:"식후 30분",days:30,source_text:"해든정 5mg 1정 1일 2회 아침·저녁 식후 30분 30일"}]},
+    {name:"노바스크정",strength:"5mg",dose:"1정",times_per_day:1,timing:"아침",when_note:"식후 30분",days:30,source_text:"노바스크정 5mg 1정 1일 1회 아침 식후 30분 30일"},
+    {name:"노바스크정",strength:"5mg",dose:"1정",times_per_day:1,timing:"저녁",when_note:"식후 30분",days:30,source_text:"노바스크정 5mg 1정 1일 1회 저녁 식후 30분 30일"},
+    {name:"다이아벡스정",strength:"500mg",dose:"1정",times_per_day:2,timing:"아침·저녁",when_note:"식후 30분",days:30,source_text:"다이아벡스정 500mg 1정 1일 2회 아침·저녁 식후 30분 30일"}]},
   blur:{doc_type:"약봉투",confidence:0.32,retake:true,reason:"글씨가 흐려 약 이름과 복용법을 확실히 읽을 수 없음",meds:[]}
 };
-var DEMO_NAMES = {m1:"약봉투 1 (정상)", m3:"약봉투 3 (같은 약이 두 번)", blur:"흐릿한 사진"};
+var DEMO_NAMES = {m1:"약봉투 1 (정상)", m2:"약봉투 2 (기울어진 사진)", m3:"약봉투 3 (같은 약이 두 번)", blur:"흐릿한 사진"};
 
 var STEPS = [
   ["찰칵","휴대폰 카메라로 약봉투를 찍습니다."],
   ["읽기","AI가 약 이름·1회량·횟수·시점·일수를 읽어 JSON으로 만듭니다.","AI"],
   ["확인","읽은 값을 어르신이 확인합니다. 틀리면 다시 찍습니다."],
   ["정리","시간표와 같은 약 중복 여부는 AI가 아니라 코드가 정리합니다."],
-  ["설명","정리해 둔 자료 안에서만 설명하고, 음성으로 읽어 줍니다. (실제는 RAG)"]
+  ["안내","읽은 값을 큰 글씨 시간표로 보여 주고 음성으로 읽어 줍니다. 용도·주의사항은 식약처 정보로 보강할 수 있습니다(연결 전)."]
 ];
 var PROMPT = [
  "첨부된 사진은 한국 약국의 약봉투 또는 복약안내문입니다(연습용 가상 견본).",
@@ -172,9 +174,9 @@ function renderSteps(){
   $("steps").innerHTML = h;
   $("json").textContent = S.json ? JSON.stringify(S.json,null,2) : "아직 읽은 값이 없습니다. 약봉투를 찍으면 여기에 나타납니다.";
   $("hint").textContent = S.mode==="ai"
-    ? "'읽기'만 실제 AI가 합니다. 시간표·중복 확인은 코드가 하고, 약 설명은 정리해 둔 예시 자료 안에서만 합니다. 이 화면의 약 정보는 예시이며 실제 복용 기준이 아닙니다."
-    : "견본 모드입니다. AI 없이 미리 적어 둔 값을 씁니다.";
-  $("badge").textContent = S.mode==="ai" ? "읽기는 진짜 AI · 약봉투와 약 정보는 가상" : "견본 모드 · 모든 값은 가짜입니다";
+    ? "'읽기'만 실제 AI가 합니다. 시간표·중복 확인은 코드가 합니다. 약 이름은 실제 제품명이지만 약봉투와 처방은 가상이며, 실제 복용 기준이 아닙니다."
+    : "견본 모드입니다. AI 없이 미리 적어 둔 값을 씁니다. 약 이름만 실제 제품명이고 처방은 가상입니다.";
+  $("badge").textContent = S.mode==="ai" ? "읽기는 진짜 AI · 약봉투는 가상" : "견본 모드 · 처방은 모두 가상입니다";
 }
 function dots(n){var h='<div class="dots" aria-hidden="true">';for(var i=1;i<=4;i++)h+='<i class="'+(i<=n?'on':'')+'"></i>';return h+'</div>'}
 function go(screen,step){S.screen=screen;S.stepOn=step;render()}
@@ -219,10 +221,10 @@ function render(){
       '<input id="cam" type="file" accept="image/*" capture="environment" hidden>'+
       '<button class="big" id="shoot" type="button">📷 약봉투 찍기</button>'+
       (S.err?'<div class="verdict v-warn"><h3>잠깐만요</h3>'+esc(S.err)+'</div>':'')+
-      '<p class="note">처음 한 번은 AI 사용을 허용하는 창이 뜰 수 있어요.</p>'+
+      (sampleFn?'<p class="note">처음 한 번은 AI 사용을 허용하는 창이 뜰 수 있어요.</p>':'')+
       '<button class="lnk" id="demoToggle" type="button">사진 없이 견본으로 해 보기</button>'+
       '<div class="samples" id="demoList" hidden>'+
-      ["m1","m3","blur"].map(function(k){return '<button class="chip" type="button" data-demo="'+k+'">'+DEMO_NAMES[k]+'</button>'}).join("")+'</div></div>';
+      ["m1","m2","m3","blur"].map(function(k){return '<button class="chip" type="button" data-demo="'+k+'">'+DEMO_NAMES[k]+'</button>'}).join("")+'</div></div>';
   }
   else if(S.screen==="reading"){
     h = '<div class="fade">'+dots(1)+(S.photo?'<img class="photo" alt="찍은 사진" src="'+S.photo+'">':'')+
@@ -254,13 +256,12 @@ function render(){
     var names={}, infos="";
     j.meds.forEach(function(m){ if(names[m.name]) return; names[m.name]=1;
       var f=INFO[m.name];
-      infos += f ? '<div class="info"><b>'+esc(m.name)+'</b><br>'+esc(f.use)+'<br>'+esc(f.care)+'</div>'
-                 : '<div class="info"><b>'+esc(m.name)+'</b><br>이 약은 정리해 둔 설명 자료가 없어서 안내하지 않아요. 약사에게 물어보세요.</div>';
+      if(f) infos += '<div class="info"><b>'+esc(m.name)+'</b><br>'+esc(f.use)+'<br>'+esc(f.care)+'</div>';
     });
     var warn = p.flags.length ? '<div class="verdict v-warn"><h3>약사·의사 확인이 필요해요</h3>'+p.flags.map(esc).join("<br>")+'</div>' : "";
     S.speech = say.join(" ")+(p.flags.length?" 확인이 필요한 내용이 있으니 약사나 의사에게 물어보세요.":"")+" 약을 바꾸거나 멈추기 전에는 꼭 약사나 의사와 상의하세요.";
     h = '<div class="fade">'+dots(4)+'<h2>복용 시간표</h2>'+warn+slots+
-      '<div class="label">약 설명 (예시 자료)</div>'+infos+
+      (infos ? '<div class="label">약 설명</div>'+infos : '<p class="mini">용도·주의사항 같은 부가 설명은 식약처 의약품 정보를 연결하면 이곳에 표시됩니다. (아직 연결 전)</p>')+
       '<p class="mini">약을 바꾸거나 멈추기 전에는 꼭 약사·의사와 상의하세요. 이 화면은 진단이나 복용 변경을 안내하지 않아요.</p>'+
       '<button class="speak" id="speak" type="button">🔊 소리로 듣기</button>'+
       '<button class="big line" id="restart" type="button">처음으로</button></div>';

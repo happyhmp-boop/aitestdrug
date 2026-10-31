@@ -134,9 +134,11 @@ var DEMO = {
     {name:"노바스크정",strength:"5mg",dose:"1정",times_per_day:1,timing:"아침",when_note:"식후 30분",days:30,source_text:"노바스크정 5mg 1정 1일 1회 아침 식후 30분 30일"},
     {name:"노바스크정",strength:"5mg",dose:"1정",times_per_day:1,timing:"저녁",when_note:"식후 30분",days:30,source_text:"노바스크정 5mg 1정 1일 1회 저녁 식후 30분 30일"},
     {name:"다이아벡스정",strength:"500mg",dose:"1정",times_per_day:2,timing:"아침·저녁",when_note:"식후 30분",days:30,source_text:"다이아벡스정 500mg 1정 1일 2회 아침·저녁 식후 30분 30일"}]},
+  m4:{doc_type:"약봉투",confidence:0.95,retake:false,meds:[
+    {name:"타이레놀",strength:"500mg",dose:"1정",times_per_day:3,timing:"매 식후",when_note:"필요할 때, 4~6시간 간격",days:3,source_text:"타이레놀 500mg 1정 1일 3회 매 식후 3일"}]},
   blur:{doc_type:"약봉투",confidence:0.32,retake:true,reason:"글씨가 흐려 약 이름과 복용법을 확실히 읽을 수 없음",meds:[]}
 };
-var DEMO_NAMES = {m1:"약봉투 1 (정상)", m2:"약봉투 2 (기울어진 사진)", m3:"약봉투 3 (같은 약이 두 번)", blur:"흐릿한 사진"};
+var DEMO_NAMES = {m1:"약봉투 1 (정상)", m2:"약봉투 2 (기울어진 사진)", m3:"약봉투 3 (같은 약이 두 번)", m4:"약봉투 4 (일반약 · 식약처 설명 확인용)", blur:"흐릿한 사진"};
 
 var STEPS = [
   ["찰칵","휴대폰 카메라로 약봉투를 찍습니다."],
@@ -227,7 +229,7 @@ function render(){
       (sampleFn?'<p class="note">처음 한 번은 AI 사용을 허용하는 창이 뜰 수 있어요.</p>':'')+
       '<button class="lnk" id="demoToggle" type="button">사진 없이 견본으로 해 보기</button>'+
       '<div class="samples" id="demoList" hidden>'+
-      ["m1","m2","m3","blur"].map(function(k){return '<button class="chip" type="button" data-demo="'+k+'">'+DEMO_NAMES[k]+'</button>'}).join("")+'</div></div>';
+      ["m1","m2","m3","m4","blur"].map(function(k){return '<button class="chip" type="button" data-demo="'+k+'">'+DEMO_NAMES[k]+'</button>'}).join("")+'</div></div>';
   }
   else if(S.screen==="reading"){
     h = '<div class="fade">'+dots(1)+(S.photo?'<img class="photo" alt="찍은 사진" src="'+S.photo+'">':'')+

@@ -56,7 +56,7 @@ module.exports = async function handler(req, res) {
     const r = await fetch(url);
     const text = await r.text();
     let j;
-    try { j = JSON.parse(text); } catch (e) { return fail(res, 502, "upstream_error"); }
+    try { j = JSON.parse(text); } catch (e) { console.error("easy: 식약처 응답이 JSON이 아님", String(text).slice(0, 120)); return fail(res, 502, "upstream_error"); }
     const body = j.body || {};
     let items = body.items || [];
     if (!Array.isArray(items)) items = items.item || [];
@@ -64,7 +64,7 @@ module.exports = async function handler(req, res) {
     items = items.filter(Boolean);
     if (!items.length) return res.status(200).json({ found: false, name: name });
     pick = items.find(function (x) { return String(x.itemName || "").indexOf(name) === 0; }) || items[0];
-  } catch (e) { return fail(res, 502, "upstream_error"); }
+  } catch (e) { console.error("easy: 식약처 호출 실패", String(e && e.message)); return fail(res, 502, "upstream_error"); }
 
   const src = [
     "[자료]",
@@ -81,22 +81,22 @@ module.exports = async function handler(req, res) {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": akey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: MODEL, max_tokens: 800,
+        model: MODEL, max_tokens: 2000,
         messages: [{ role: "user", content: PROMPT + "\n\n" + src }]
       })
     });
-    if (r.status === 429) return fail(res, 429, "rate_limited");
-    if (!r.ok) return fail(res, 502, "upstream_error");
+    if (r.status === 429) { console.error("easy: AI 호출 한도(429)"); return fail(res, 429, "rate_limited"); }
+    if (!r.ok) { let t = ""; try { t = await r.text(); } catch (e) {} console.error("easy: AI 호출 실패", r.status, t.slice(0, 300)); return fail(res, 502, "upstream_error"); }
     const out = await r.json();
     const text = (out.content || []).map(function (c) { return c.text || ""; }).join("");
     const i = text.indexOf("{"), k = text.lastIndexOf("}");
-    if (i < 0 || k < i) return fail(res, 502, "invalid_json");
+    if (i < 0 || k < i) { console.error("easy: AI 답에 JSON이 없음", text.slice(0, 200), "stop:", out.stop_reason); return fail(res, 502, "invalid_json"); }
     let p;
-    try { p = JSON.parse(text.slice(i, k + 1)); } catch (e) { return fail(res, 502, "invalid_json"); }
+    try { p = JSON.parse(text.slice(i, k + 1)); } catch (e) { console.error("easy: AI 답 JSON 해석 실패", text.slice(0, 200), "stop:", out.stop_reason); return fail(res, 502, "invalid_json"); }
     const use = clip(String((p && p.use) || "").trim(), 200);
     const cautions = (Array.isArray(p && p.cautions) ? p.cautions : [])
       .map(function (c) { return clip(String(c || "").trim(), 120); }).filter(Boolean).slice(0, 6);
-    if (!use && !cautions.length) return fail(res, 502, "invalid_json");
+    if (!use && !cautions.length) { console.error("easy: 요약 내용이 비어 있음"); return fail(res, 502, "invalid_json"); }
     return res.status(200).json({
       found: true, name: name,
       itemName: clean(pick.itemName), use: use, cautions: cautions,
@@ -106,6 +106,7 @@ module.exports = async function handler(req, res) {
       source: "식품의약품안전처 의약품개요정보(e약은요) · AI가 쉬운 말로 줄임"
     });
   } catch (e) {
+    console.error("easy: AI 호출 중 예외", String(e && e.message));
     return fail(res, 502, "upstream_error");
   }
 };

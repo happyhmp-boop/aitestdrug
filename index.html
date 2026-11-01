@@ -114,6 +114,9 @@ html{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-wi
 .slot ul{margin:0;padding-left:20px}
 .info{border-top:1px dashed var(--line);padding:8px 0;font-size:16px}
 .info b{font-size:18px}
+.cau{margin:6px 0 8px 18px;padding:0}.cau li{margin:4px 0;font-size:17px}
+details.orig summary{cursor:pointer;color:var(--accent);padding:8px 0;font-size:16px}
+
 .mini{font-size:13px;color:var(--muted)}
 </style>
 <script>
@@ -285,22 +288,55 @@ async function fetchDrug(name){
   if(!r.ok) throw d;
   drugCache[name]=d; return d;
 }
+var easyCache = {};
+async function fetchEasy(name){
+  if(easyCache[name]) return easyCache[name];
+  var r = await fetch("/api/easy",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name:name})});
+  var d = await r.json().catch(function(){return {error:"bad"}});
+  if(!r.ok) throw d;
+  easyCache[name]=d; return d;
+}
+function easyHtml(n,d){
+  var c=(d.cautions||[]).map(function(x){return '<li>'+esc(x)+'</li>'}).join("");
+  var o=d.orig||{};
+  var full=[o.efcy?'<b>효능</b> '+esc(o.efcy):'', o.atpnWarn?'<b>경고</b> '+esc(o.atpnWarn):'', o.atpn?'<b>주의사항</b> '+esc(o.atpn):''].filter(Boolean).join('<br><br>');
+  return '<div class="info"><b>'+esc(n)+'</b><br>'+(d.use?'<b>어디에 쓰나요</b> '+esc(d.use):'')+
+    (c?'<br><b>주의하세요</b><ul class="cau">'+c+'</ul>':'')+
+    '<span class="mini">출처: '+esc(d.source)+(d.updateDe?' ('+esc(d.updateDe)+' 수정)':'')+'. 정확한 내용은 원문과 약사에게 확인하세요.</span>'+
+    (full?'<details class="orig"><summary>원문 보기</summary><div class="mini">'+full+'</div></details>':'')+'</div>';
+}
+function easySay(n,d){
+  var t=n+"은 "+(d.use||"");
+  if(d.cautions&&d.cautions.length) t+=" 주의할 점입니다. "+d.cautions.join(" ");
+  return t;
+}
 async function loadDrugInfo(){
   var box=$("drugInfo"); if(!box || !S.json) return;
   var names=[]; S.json.meds.forEach(function(m){ if(names.indexOf(m.name)<0) names.push(m.name); });
-  var out=[], failed=0;
+  var out=[]; S.extra=[];
   for(var i=0;i<names.length;i++){
-    var n=names[i];
+    var n=names[i], html="", say="";
     try{
-      var d=await fetchDrug(n);
-      if(d.found){
-        out.push('<div class="info"><b>'+esc(n)+'</b><br>'+(d.efcy?'<b>어디에 쓰나요</b> '+esc(cut(d.efcy,160))+'<br>':'')+
-          (d.atpn?'<b>주의하세요</b> '+esc(cut(d.atpn,200))+'<br>':'')+
-          '<span class="mini">출처: '+esc(d.source)+(d.updateDe?' ('+esc(d.updateDe)+' 수정)':'')+'</span></div>');
-      }else{
-        out.push('<div class="info"><b>'+esc(n)+'</b><br>식약처 쉬운 설명 자료에서 찾지 못했어요. 약사에게 물어보세요.</div>');
+      var d=await fetchEasy(n);
+      if(d.found){ html=easyHtml(n,d); say=easySay(n,d); }
+      else{ html='<div class="info"><b>'+esc(n)+'</b><br>식약처 쉬운 설명 자료에서 찾지 못했어요. 약사에게 물어보세요.</div>'; say=n+"은 식약처 설명 자료에서 찾지 못했습니다. 약사에게 물어보세요."; }
+    }catch(e){
+      /* 쉬운 말 요약이 안 되면, 식약처 원문 일부라도 보여 준다(소리는 내지 않는다) */
+      try{
+        var r=await fetchDrug(n);
+        if(r.found){
+          html='<div class="info"><b>'+esc(n)+'</b><br>'+(r.efcy?'<b>어디에 쓰나요</b> '+esc(cut(r.efcy,160))+'<br>':'')+
+            (r.atpn?'<b>주의하세요</b> '+esc(cut(r.atpn,200))+'<br>':'')+
+            '<span class="mini">출처: '+esc(r.source)+(r.updateDe?' ('+esc(r.updateDe)+' 수정)':'')+'. 쉬운 요약을 만들지 못해 원문 일부를 보여 드려요.</span></div>';
+          say=n+"의 설명은 화면의 글을 읽어 보시고, 약사에게 확인하세요.";
+        }else{
+          html='<div class="info"><b>'+esc(n)+'</b><br>식약처 쉬운 설명 자료에서 찾지 못했어요. 약사에게 물어보세요.</div>'; say=n+"은 식약처 설명 자료에서 찾지 못했습니다. 약사에게 물어보세요.";
+        }
+      }catch(e2){
+        html='<div class="info"><b>'+esc(n)+'</b><br>설명을 불러오지 못했어요. 약사에게 물어보세요.</div>'; say=n+"의 설명을 불러오지 못했습니다. 약사에게 물어보세요.";
       }
-    }catch(e){ failed++; out.push('<div class="info"><b>'+esc(n)+'</b><br>설명을 불러오지 못했어요. 약사에게 물어보세요.</div>'); }
+    }
+    out.push(html); S.extra.push(say);
     if(!$("drugInfo")) return;                       /* 화면이 바뀌었으면 그만둔다 */
     $("drugInfo").innerHTML = out.join("");
   }
@@ -371,7 +407,13 @@ function bind(){
   var ok=$("okread"); if(ok) ok.onclick=function(){go("result",5)};
   var c=$("cancel"); if(c) c.onclick=function(){ if(ctl) ctl.abort() };
   var sp=$("speak"); if(sp) sp.onclick=function(){
-    try{ speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(S.speech); u.lang="ko-KR"; u.rate=0.9; speechSynthesis.speak(u); }
+    try{
+      speechSynthesis.cancel();
+      var fin="약을 바꾸거나 멈추기 전에는 꼭 약사나 의사와 상의하세요.";
+      var all=String(S.speech||"").replace(fin,"").trim()+" "+(S.extra||[]).join(" ")+" "+fin;
+      (all.match(/[^.!?]+[.!?]?/g)||[]).forEach(function(t){ t=t.trim(); if(!t) return;
+        var u=new SpeechSynthesisUtterance(t); u.lang="ko-KR"; u.rate=0.9; speechSynthesis.speak(u); });
+    }
     catch(e){ sp.textContent="이 기기에서는 소리를 낼 수 없어요"; }
   };
 }

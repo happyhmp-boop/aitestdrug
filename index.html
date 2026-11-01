@@ -164,7 +164,7 @@ var PROMPT = [
 var S = {screen:"start", mode:"demo", json:null, photo:null, stepOn:0, err:null, speech:""};
 /* 서버 연결 시 여기에 주소를 넣는다. 예: "/api/read" (사진을 받아 위 JSON 형식으로 돌려주는 서버 함수).
    비어 있으면 AI 읽기는 꺼지고 견본으로만 동작한다. API 키는 이 파일이 아니라 서버에만 둔다. */
-var READ_ENDPOINT = "";
+var READ_ENDPOINT = "/api/read";
 var sampleFn = null, canImg = false, ctl = null;
 function $(id){return document.getElementById(id)}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}

@@ -129,7 +129,7 @@ module.exports = async function handler(req, res) {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": akey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: MODEL, max_tokens: 2000,
+        model: MODEL, max_tokens: 8000,
         messages: [{ role: "user", content: PROMPT + "\n\n" + src }]
       })
     });

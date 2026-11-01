@@ -30,6 +30,42 @@ function clean(s) {
 function clip(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n) : s; }
 function fail(res, status, error) { res.status(status).json({ error: error }); }
 
+/* 허가정보의 긴 설명은 XML 조각(CDATA)으로 온다. 태그를 걷어 내고 글자만 남긴다. */
+function xmlText(s) {
+  return String(s == null ? "" : s)
+    .replace(/<!\[CDATA\[/g, "").replace(/\]\]>/g, "")
+    .replace(/<\/(PARAGRAPH|ARTICLE|SECTION)>/g, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ").trim();
+}
+
+/* e약은요에 없는 약(주로 처방약)을 식약처 '의약품 제품 허가정보'에서 찾는다. 못 찾으면 null.
+   용법·용량은 일부러 가져오지 않는다(처방약은 사람마다 달라 화면에 쓰지 않는다). */
+const PERMIT = "https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService08/getDrugPrdtPrmsnDtlInq08";
+async function fetchPermit(key, name) {
+  try {
+    const r = await fetch(PERMIT + "?serviceKey=" + encodeURIComponent(key) + "&item_name=" + encodeURIComponent(name) +
+                          "&type=json&pageNo=1&numOfRows=10");
+    const text = await r.text();
+    let j;
+    try { j = JSON.parse(text); } catch (e) { console.error("easy: 허가정보 응답이 JSON이 아님", String(text).slice(0, 120)); return null; }
+    const body = j.body || {};
+    let items = body.items || [];
+    if (!Array.isArray(items)) items = items.item || [];
+    if (!Array.isArray(items)) items = [items];
+    items = items.filter(Boolean);
+    if (!items.length) return null;
+    const ok = items.filter(function (x) { return String(x.CANCEL_NAME || "") === "정상"; });
+    const pool = ok.length ? ok : items;
+    const x = pool.find(function (y) { return String(y.ITEM_NAME || "").indexOf(name) === 0; }) || pool[0];
+    return {
+      itemName: clean(x.ITEM_NAME), spclty: clean(x.ETC_OTC_CODE),
+      efcy: xmlText(x.EE_DOC_DATA), atpn: xmlText(x.NB_DOC_DATA), updateDe: clean(x.CHANGE_DATE)
+    };
+  } catch (e) { console.error("easy: 허가정보 호출 실패", String(e && e.message)); return null; }
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") return fail(res, 405, "method_not_allowed");
   const raw = process.env.DATA_GO_KR_KEY, akey = process.env.ANTHROPIC_API_KEY;
@@ -49,7 +85,7 @@ module.exports = async function handler(req, res) {
   try { if (/%[0-9A-Fa-f]{2}/.test(key)) key = decodeURIComponent(key); } catch (e) {}
 
   /* 1) 식약처 원문 가져오기 */
-  let pick;
+  let pick, permit = null;
   try {
     const url = BASE + "?ServiceKey=" + encodeURIComponent(key) + "&itemName=" + encodeURIComponent(name) +
                 "&type=json&pageNo=1&numOfRows=5";
@@ -62,11 +98,23 @@ module.exports = async function handler(req, res) {
     if (!Array.isArray(items)) items = items.item || [];
     if (!Array.isArray(items)) items = [items];
     items = items.filter(Boolean);
-    if (!items.length) return res.status(200).json({ found: false, name: name });
-    pick = items.find(function (x) { return String(x.itemName || "").indexOf(name) === 0; }) || items[0];
+    if (items.length) pick = items.find(function (x) { return String(x.itemName || "").indexOf(name) === 0; }) || items[0];
   } catch (e) { console.error("easy: 식약처 호출 실패", String(e && e.message)); return fail(res, 502, "upstream_error"); }
 
-  const src = [
+  /* e약은요에 없으면 허가정보(처방약 포함)에서 찾는다 */
+  if (!pick) {
+    permit = await fetchPermit(key, name);
+    if (!permit || (!permit.efcy && !permit.atpn)) return res.status(200).json({ found: false, name: name });
+  }
+
+  const src = permit ? [
+    "[자료]",
+    "약 이름: " + permit.itemName,
+    "구분: " + (permit.spclty || "전문의약품"),
+    "효능: " + clip(permit.efcy, 1000),
+    "주의사항: " + clip(permit.atpn, 5000),
+    "※ 이 약은 의사가 처방하는 약입니다. 용법·용량 숫자는 쓰지 말고, 복용은 의사가 정해 준 대로 하라는 말만 쓰세요."
+  ].join("\n") : [
     "[자료]",
     "약 이름: " + clean(pick.itemName),
     "효능: " + clip(clean(pick.efcyQesitm), 1500),
@@ -97,6 +145,16 @@ module.exports = async function handler(req, res) {
     const cautions = (Array.isArray(p && p.cautions) ? p.cautions : [])
       .map(function (c) { return clip(String(c || "").trim(), 120); }).filter(Boolean).slice(0, 6);
     if (!use && !cautions.length) { console.error("easy: 요약 내용이 비어 있음"); return fail(res, 502, "invalid_json"); }
+    if (permit) {
+      return res.status(200).json({
+        found: true, name: name,
+        itemName: permit.itemName,
+        use: "의사가 처방하는 전문의약품이에요. " + use, cautions: cautions,
+        orig: { efcy: clip(permit.efcy, 1500), atpnWarn: "", atpn: clip(permit.atpn, 5000) },
+        updateDe: permit.updateDe,
+        source: "식품의약품안전처 의약품 제품 허가정보 · AI가 쉬운 말로 줄임"
+      });
+    }
     return res.status(200).json({
       found: true, name: name,
       itemName: clean(pick.itemName), use: use, cautions: cautions,

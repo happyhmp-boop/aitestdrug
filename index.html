@@ -224,7 +224,10 @@ function render(){
   if(S.screen==="start"){
     h = '<div class="fade">'+dots(0)+'<h2>약봉투를 사진으로 찍어 보세요</h2><p>언제 어떤 약을 드시는지 정리해 드려요.</p>'+
       '<input id="cam" type="file" accept="image/*" capture="environment" hidden>'+
+      '<input id="pick" type="file" accept="image/*" hidden>'+
       '<button class="big" id="shoot" type="button">📷 약봉투 찍기</button>'+
+      '<button class="big" id="album" type="button" style="margin-top:10px;opacity:.9">🖼 앨범에서 고르기</button>'+
+      '<p class="note">찍기가 안 되면 폰 카메라로 먼저 찍은 뒤 \'앨범에서 고르기\'를 눌러 주세요.</p>'+
       (S.err?'<div class="verdict v-warn"><h3>잠깐만요</h3>'+esc(S.err)+'</div>':'')+
       (sampleFn?'<p class="note">처음 한 번은 AI 사용을 허용하는 창이 뜰 수 있어요.</p>':'')+
       '<button class="lnk" id="demoToggle" type="button">사진 없이 견본으로 해 보기</button>'+
@@ -361,6 +364,7 @@ function useDemo(k){
 }
 function bind(){
   var cam=$("cam"); if(cam){ $("shoot").onclick=function(){cam.click()}; cam.onchange=function(){var f=cam.files&&cam.files[0]; if(f) readPhoto(f)}; }
+  var pk=$("pick"); if(pk){ $("album").onclick=function(){pk.click()}; pk.onchange=function(){var f=pk.files&&pk.files[0]; if(f) readPhoto(f)}; }
   var dt=$("demoToggle"); if(dt) dt.onclick=function(){var l=$("demoList"); l.hidden=!l.hidden};
   document.querySelectorAll("[data-demo]").forEach(function(b){b.onclick=function(){useDemo(b.getAttribute("data-demo"))}});
   ["again","restart"].forEach(function(id){var e=$(id); if(e) e.onclick=function(){S.json=null;S.photo=null;S.err=null;go("start",0)}});
